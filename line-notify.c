@@ -40,7 +40,8 @@ void setup() {
   Serial.println(WiFi.localIP());
 
   // ส่งข้อความทักทายครั้งแรก
-  //sendLineMessage("สวัสดีจาก ESP32 🎉\nระบบควบคุมไฟพร้อมแล้ว!");
+  delay(2000);
+  sendLineMessage("TEST");
 }
 
 bool lastOnState = HIGH;
@@ -55,7 +56,7 @@ void loop() {
     Serial.println("ON button pressed");
 
     digitalWrite(LED_PIN, HIGH);
-    sendLineMessage("ส่งข้อความแล้ว");
+    sendLineMessage("TEST");
   }
 
   if (lastOffState == HIGH && offState == LOW) {
@@ -75,29 +76,24 @@ void loop() {
 // === ฟังก์ชันส่งข้อความ ===
 void sendLineMessage(String msg) {
   if (WiFi.status() == WL_CONNECTED) {
+
     HTTPClient http;
     http.begin("https://api.line.me/v2/bot/message/push");
     http.addHeader("Content-Type", "application/json");
     http.addHeader("Authorization", "Bearer " + CHANNEL_ACCESS_TOKEN);
 
-    String payload = "{";
-    payload += "\"to\":\"" + USER_ID + "\",";
-    payload += "\"messages\":[{\"type\":\"text\",\"text\":\"" + msg + "\"}]";
-    payload += "}";
+    msg.replace("\"", "'");   // กัน JSON พัง
+    msg.replace("\n", " ");   // กัน newline
+
+    String payload =
+      "{\"to\":\"" + USER_ID +
+      "\",\"messages\":[{\"type\":\"text\",\"text\":\"" + msg + "\"}]}";
 
     int code = http.POST(payload);
-    Serial.print("HTTP Response code: ");
+
+    Serial.println(payload);   // debug
     Serial.println(code);
 
-    if (code > 0) {
-      String res = http.getString();
-      Serial.println(res);
-    } else {
-      Serial.println("ส่งไม่สำเร็จ!");
-    }
-
     http.end();
-  } else {
-    Serial.println("WiFi disconnected");
   }
 }
