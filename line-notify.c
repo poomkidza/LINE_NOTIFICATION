@@ -1,5 +1,6 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include "time.h"
 
 // === WiFi Config ===
 #define ssid  "TangratPhone"
@@ -13,6 +14,9 @@ String USER_ID = "U3e910e2f44a8b27943057e07d320c78e"; // คนหรือก�
 const int BUTTON_ON_PIN  = 4;   // ปุ่มเปิดไฟ
 const int BUTTON_OFF_PIN = 5;   // ปุ่มปิดไฟ
 const int LED_PIN        = 2;   // ไฟที่ควบคุม
+const char* ntpServer = "pool.ntp.org";
+const long gmtOffset_sec = 7 * 3600;
+const int daylightOffset_sec = 0;
 
 void setup() {
   Serial.begin(115200);
@@ -39,61 +43,119 @@ void setup() {
   Serial.println("\nWiFi Connected!");
   Serial.println(WiFi.localIP());
 
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+  Serial.println("Waiting for time to sync....");
+  struct tm timeinfo;
+  while (!getLocalTime(&timeinfo)) {
+    Serial.println("Failed to obtain time");
+    delay(1000);
+  }
+    Serial.println("Time synced!");
+
+
   // ส่งข้อความทักทายครั้งแรก
   delay(2000);
-  sendLineMessage("TEST");
+  sendLineMessage(
+    "แจ้งเตือน\nวันที่เวลา : " + getThaiDateTime() +
+    "\nผู้ป่วยแสดงอาการ คลิกเพื่อดูกล้อง -->"
+  );
 }
 
-bool lastOnState = HIGH;
-bool lastOffState = HIGH;
-
-void loop() {
-
-  bool onState = digitalRead(BUTTON_ON_PIN);
-  bool offState = digitalRead(BUTTON_OFF_PIN);
-
-  if (lastOnState == HIGH && onState == LOW) {
-    Serial.println("ON button pressed");
-
-    digitalWrite(LED_PIN, HIGH);
-    sendLineMessage("TEST");
-  }
-
-  if (lastOffState == HIGH && offState == LOW) {
-    Serial.println("OFF button pressed");
-
-    digitalWrite(LED_PIN, LOW);
-    sendLineMessage("🔌 ปิดไฟแล้ว");
-  }
-
-  lastOnState = onState;
-  lastOffState = offState;
-
-  delay(20);
+void loop(){
+  
 }
 
 
 // === ฟังก์ชันส่งข้อความ ===
+#include <WiFiClientSecure.h>
+
 void sendLineMessage(String msg) {
-  if (WiFi.status() == WL_CONNECTED) {
 
-    HTTPClient http;
-    http.begin("https://api.line.me/v2/bot/message/push");
-    http.addHeader("Content-Type", "application/json");
-    http.addHeader("Authorization", "Bearer " + CHANNEL_ACCESS_TOKEN);
-
-    msg.replace("\"", "'");   // กัน JSON พัง
-    msg.replace("\n", " ");   // กัน newline
-
-    String payload =
-      "{\"to\":\"" + USER_ID +
-      "\",\"messages\":[{\"type\":\"text\",\"text\":\"" + msg + "\"}]}";
-
-    int code = http.POST(payload);
-
-    Serial.println(payload);   // debug
-    Serial.println(code);
-
-    http.end();
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("WiFi disconnected");
+    return;
   }
+
+  WiFiClientSecure client;
+  client.setInsecure();   // ⭐ สำคัญที่สุด
+
+  HTTPClient http;
+
+  http.begin(client,
+    "https://api.line.me/v2/bot/message/push");
+
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("Authorization",
+                 "Bearer " + CHANNEL_ACCESS_TOKEN);
+
+  msg.replace("\"", "'");
+  msg.replace("\n", "\\n");
+  msg.replace("\r", "");
+
+  String payload =
+    "{\"to\":\"" + USER_ID +
+    "\",\"messages\":[{\"type\":\"text\",\"text\":\"" +
+    msg + "\"}]}";
+
+  Serial.println("Sending...");
+  Serial.println(payload);
+
+  int httpCode = http.POST(payload);
+
+  Serial.print("HTTP Code: ");
+  Serial.println(httpCode);
+
+  String response = http.getString();
+  Serial.println(response);
+
+  http.end();
+}
+
+String getDateTime() {
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) {
+    return "ไม่พบเวลา";
+  }
+
+  char buffer[50];
+  strftime(buffer, sizeof(buffer),
+          "%d/%m/%Y %H:%M:%S", &timeinfo);
+
+  return String(buffer);
+}
+
+String getThaiDateTime() {
+
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) {
+    return "ไม่พบเวลา";
+  }
+
+  String dayTH[] = {
+    "วันอาทิตย์","วันจันทร์","วันอังคาร",
+    "วันพุธ","วันพฤหัสบดี","วันศุกร์","วันเสาร์"
+  };
+
+  String monthTH[] = {
+    "มกราคม","กุมภาพันธ์","มีนาคม","เมษายน",
+    "พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม",
+    "กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"
+  };
+
+  int day = timeinfo.tm_mday;
+  int month = timeinfo.tm_mon;
+  int year = timeinfo.tm_year + 1900 + 543; // พ.ศ.
+
+  char timeBuffer[10];
+  strftime(timeBuffer, sizeof(timeBuffer),
+           "%H:%M:%S", &timeinfo);
+
+  String result =
+      dayTH[timeinfo.tm_wday] + " ที่ " +
+      String(day) + " " +
+      monthTH[month] + " " +
+      String(year) +
+      "\nเวลา " + String(timeBuffer) + " น.";
+
+  return result;
 }
