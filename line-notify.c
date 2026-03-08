@@ -4,8 +4,8 @@
 #include "time.h"
 
 // ===== WiFi =====
-const char* ssid = "Galaxy A56 5G 85F6";
-const char* password = "salesswc";
+const char* ssid = "TangratPhone";
+const char* password = "poomkidza";
 
 // ===== LINE Messaging API =====
 String CHANNEL_ACCESS_TOKEN = "0e3Rym2Nb9IkxT0mcaKhrUgW5FkbN6xhq2aUUbxCecPyXW3YKmx4eff0KYQTL6PkE3mAR8YHZYdnJLQcrMPgj5g8kW7ofJDyy/c3cm7TstaIstnUBZbYaK09NPZFtdXK++AHaeCI8norsOMRmWQGVgdB04t89/1O/w1cDnyilFU=";
@@ -59,10 +59,10 @@ void loop() {
   if (digitalRead(pirPin) == HIGH) {
     Serial.println("Motion Detected!");
 
-    String msg = "แจ้งเตือน\nวันที่เวลา : " + getThaiTime();
+    String msg = "แจ้งเตือน\nวันที่เวลา : " + getThaiTime() + "\nคลิ๊กที่นี่เพื่อดูลิ้งค์ --> http://172.20.10.3";
     sendLineMessage(msg);
 
-    delay(10000);
+    delay(3000);
   }
 }
 
@@ -82,9 +82,7 @@ void sendLineMessage(String message) {
 
   // สร้าง Payload
   String payload =
-    "{\"to\":\"" + USER_ID +
-    "\",\"messages\":[{\"type\":\"text\",\"text\":\"" +
-    message + "\"}]}";
+    "{\"to\":\"" + USER_ID + "\",\"messages\":[{\"type\":\"text\",\"text\":\"" + message + "\"}]}";
 
   int httpCode = http.POST(payload);
 
@@ -101,12 +99,12 @@ String getThaiTime() {
   if (!getLocalTime(&timeinfo)) return "เวลาไม่ถูกต้อง";
 
   const char* wday[] = {
-    "วันอาทิตย์","วันจันทร์","วันอังคาร",
-    "วันพุธ","วันพฤหัสบดี","วันศุกร์","วันเสาร์"
+    "วันอาทิตย์", "วันจันทร์", "วันอังคาร",
+    "วันพุธ", "วันพฤหัสบดี", "วันศุกร์", "วันเสาร์"
   };
   const char* monthTH[] = {
-    "มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน",
-    "กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"
+    "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+    "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
   };
 
   char timeBuff[20];
@@ -115,11 +113,7 @@ String getThaiTime() {
   int buddhistYear = timeinfo.tm_year + 1900 + 543;
 
   String t =
-    String(wday[timeinfo.tm_wday]) + " ที่ " +
-    String(timeinfo.tm_mday) + " " +
-    String(monthTH[timeinfo.tm_mon]) + " " +
-    String(buddhistYear) +
-    "\nเวลา " + String(timeBuff) + " น.";
+    String(wday[timeinfo.tm_wday]) + " ที่ " + String(timeinfo.tm_mday) + " " + String(monthTH[timeinfo.tm_mon]) + " " + String(buddhistYear) + "\nเวลา " + String(timeBuff) + " น.";
 
   return t;
 }
